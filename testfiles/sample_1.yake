@@ -1,0 +1,56 @@
+let:
+  cpu: 8
+  ram: 16
+  hdd: 512
+
+all:
+  io: x3 x6 -> all
+
+fifth:
+  io: x3 -> x7
+  copy: second
+  python: 
+    - |
+      print("hello from python")
+      with open('o@1', 'r') as f:
+        for line in f:
+          print(line)
+  haskell:
+    - compile: ghc --make -O2
+    - |
+      main = putStrLn "hello world"
+
+fourth:
+  io: x6 -> x7
+  let:
+    hello_world: 'wow!'
+    string: >
+      this is a long string
+      that spans multiple lines
+  copy: first
+  sh:
+    - echo ^string
+
+
+third:
+  io: x1 x2 x3 -> x4 x5 x6
+  sh:
+    - touch o@1
+    - echo x5 > o@2
+    - echo x6 > o@3
+    - echo $cpu
+
+second:
+  io: x2 -> x3
+  sh:
+    - touch o@1
+
+first:
+  io: x1 -> x2
+  let:
+    hello_world: 'hello world'
+  sh:
+    - touch o@1
+  ruby:
+    - puts ^hello_world
+    - puts 'aloha!'
