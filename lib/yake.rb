@@ -53,7 +53,9 @@ def prepare_new_exec(exec, inside)
 				       inside[:targets][n.split('@').last.to_i - 1] 
 				   }                                    # all targets
 				   .gsub( /i@1/, '$<' )       		    # first prerequisite
-				   .gsub( /i@(\D)/, '$^\1' )  		    # all prerequisites
+				   .gsub( /i@(\d)/) { |n|
+				   		inside[:prerequisites][n.split('@').last.to_i - 1]
+				   	}  		                            # all prerequisites
 				   .gsub( /(\$\(.+\))/, '$\1' )  	    # $(shell call) -> $$(shell call)
 				   .gsub( /\$([\w\d_-]+)/, '$(\1)' )    # $variable -> $(variable)
 	new_exec
@@ -73,6 +75,8 @@ def pack_script( code, name, num, lang='sh' )
 
 end
 
+# To store the flags that should be explicitely declared in the Makefile
+flags_as_targets = {}
 
 # Header message for the output
 header_notice = <<HEADER
@@ -124,12 +128,26 @@ input.keys.each do |task|
 	puts "\# #{defs['descr'].gsub(/(.+\n)(.+)/, '\1# \2')}" if defs.has_key? 'descr'
 	puts "\# #{defs['description'].gsub(/(.+\n)(.+)/, '\1# \2')}" if defs.has_key? 'description'
 
+	# Process rule prerequisites
+	inside[:prerequisites].map! do |pr|
+		if pr.start_with?('^')
+			flags_as_targets[pr] = inside[:targets][0]
+			flags_as_targets[pr] = add_parenth(flags_as_targets[pr]) if flags_as_targets[pr].start_with?('$')
+			fail "The flag `-f` (`--flags-only`) is required to use a rule name as a prerequisite. Not implemented yet."
+			".#{pr[1..-1]}.yakeflag"
+		else
+			pr.start_with?('$') ? add_parenth(pr) : pr
+		end
+	end
+	
 	# Process rule targets
 	if inside[:targets].length > 1
 		puts "#{task_flag}: #{inside[:prerequisites].join(' ')}"
 		# targets will be added later on with flag as a prerequisite
 	elsif inside[:targets].length == 1
-		puts "#{inside[:targets][0]}: #{inside[:prerequisites].join(' ')}"
+		tar = inside[:targets][0]
+		tar = add_parenth(tar) if tar.start_with?('$')
+		puts "#{tar}: #{inside[:prerequisites].join(' ')}"
 	else
 		warning "No targets detected in the task `#{task}'"
 		abort ABORT_MESSAGE
@@ -138,7 +156,30 @@ input.keys.each do |task|
 
 	# If copy definition is present copy other definitions
 	if defs['copy']
-		rule_to_copy = defs['copy'].strip
+		defs['copy_after'] = defs['copy']  # default is copy_after
+	end
+
+	# Copy external rules after the original ones
+	if defs['copy_after']
+		rule_to_copy = defs['copy_after'].strip
+		begin
+			external_rule = input[rule_to_copy]
+			external_rule.keys.each do |external_def|
+				if external_def == 'let'
+					defs['let'] = defs['let'].merge( external_rule['let'] )
+				elsif external_def != 'io'
+					defs[external_def] ||= []
+					defs[external_def] += external_rule[external_def]
+				end
+			end
+		rescue => e
+			puts e.backtrace.join("\n")
+		end
+	end
+
+	# Copy external rules before the original ones
+	if defs['copy_before']
+		rule_to_copy = defs['copy_before'].strip
 		begin
 			external_rule = input[rule_to_copy]
 			external_rule.keys.each do |external_def|
@@ -146,7 +187,7 @@ input.keys.each do |task|
 					defs['let'] = external_rule['let'].merge( defs['let'] )
 				elsif external_def != 'io'
 					defs[external_def] ||= []
-					defs[external_def] += external_rule[external_def]
+					defs[external_def] = external_rule[external_def] + defs[external_def]
 				end
 			end
 		rescue => e
