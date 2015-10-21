@@ -29,10 +29,14 @@ begin
 	input = YAML.load_file(input_file)
 rescue => e
 	puts e.backtrace.join("\n")
-	puts "No Yakefile provided. No Yakefile found in the current directory."
-	puts "There are files with .yake extension in the current directory:\n\t #{
-		Dir.glob('*.yake').join("\n\t")
-	}" if not Dir.glob('*.yake').empty?
+	if File.exist? input_file
+		puts "The Yakefile provided is invalid."
+	else
+		puts "No valid Yakefile provided. No valid Yakefile found in the current directory."
+		puts "There are files with .yake extension in the current directory:\n\t #{
+			Dir.glob('*.yake').join("\n\t")
+		}" if not Dir.glob('*.yake').empty?
+	end
 	abort ABORT_MESSAGE
 end
 
@@ -125,7 +129,7 @@ input.keys.each do |task|
 	# Description -> Comment above the rule
 	# Pound signs are appended to multiline comment lines
 	puts "\n\n"
-	puts "\# #{defs['descr'].gsub(/(.+\n)(.+)/, '\1# \2')}" if defs.has_key? 'descr'
+	puts "\# #{defs['descr'].gsub(/(\n)(.+)/, '\1# \2')}" if defs.has_key? 'descr'
 	puts "\# #{defs['description'].gsub(/(.+\n)(.+)/, '\1# \2')}" if defs.has_key? 'description'
 
 	# Process rule prerequisites
