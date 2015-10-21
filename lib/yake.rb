@@ -130,7 +130,7 @@ input.keys.each do |task|
 	# Pound signs are appended to multiline comment lines
 	puts "\n\n"
 	puts "\# #{defs['descr'].gsub(/(\n)(.+)/, '\1# \2')}" if defs.has_key? 'descr'
-	puts "\# #{defs['description'].gsub(/(.+\n)(.+)/, '\1# \2')}" if defs.has_key? 'description'
+	puts "\# #{defs['description'].gsub(/(\n)(.+)/, '\1# \2')}" if defs.has_key? 'description'
 
 	# Process rule prerequisites
 	inside[:prerequisites].map! do |pr|
