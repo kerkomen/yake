@@ -134,18 +134,19 @@ input.keys.each do |task|
 
 	# Process rule prerequisites
 	inside[:prerequisites].map! do |pr|
-		if pr.start_with?('^')
+		if pr.start_with?('~')
+			pr = pr[1..-1]
 			flags_as_targets[pr] = inside[:targets][0]
 			flags_as_targets[pr] = add_parenth(flags_as_targets[pr]) if flags_as_targets[pr].start_with?('$')
-			fail "The flag `-f` (`--flags-only`) is required to use a rule name as a prerequisite. Not implemented yet."
-			".#{pr[1..-1]}.yakeflag"
+			# fail "The flag `-f` (`--flags-only`) is required to use a rule name as a prerequisite. Not implemented yet."
+			".#{pr}.yakeflag"
 		else
 			pr.start_with?('$') ? add_parenth(pr) : pr
 		end
 	end
 	
 	# Process rule targets
-	if inside[:targets].length > 1
+	if (inside[:targets].length > 1) or (flags_as_targets.has_key? task)
 		puts "#{task_flag}: #{inside[:prerequisites].join(' ')}"
 		# targets will be added later on with flag as a prerequisite
 	elsif inside[:targets].length == 1
@@ -258,12 +259,17 @@ input.keys.each do |task|
 	end
 
 
-
-	puts "\ttouch #{task_flag}"
+	if defs.has_key?('target')
+		unless ['true', 'yes', 'y', 't'].member?(defs['target'].to_s.downcase)
+			puts "\ttouch #{task_flag}"
+		end
+	else
+		puts "\ttouch #{task_flag}"
+	end
 
 
 	# Multiple targets case: use flag
-	if inside[:targets].length > 1
+	if (inside[:targets].length > 1) or (flags_as_targets.has_key? task)
 
 		puts "\n"
 		inside[:targets].each do |t|
